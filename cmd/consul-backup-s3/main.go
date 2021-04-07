@@ -68,7 +68,6 @@ func init() {
 	var err error
 
 	cfg = api.DefaultConfig()
-	log = logrus.New()
 
 	// consul connect settings
 	flag.StringVar(&cfg.Address, "consul.address", "http://127.0.0.1:8500", "consul server http address")
@@ -88,7 +87,16 @@ func init() {
 	// backup settings
 	schedule := flag.String("backup.schedule", "0 0 * * *", "crontab format schedule for backup create")
 	duration := flag.String("backup.ttl", "744h0m0s", "golang duration format ttl")
+	// log settings
+	level := flag.String("log.level", "info", "log level")
 	flag.Parse()
+
+	log = logrus.New()
+	lvl, err := logrus.ParseLevel(*level)
+	if err != nil {
+		log.Fatalf("incorrect log level: %s", err)
+	}
+	log.SetLevel(lvl)
 
 	if bucket == "" {
 		log.Fatal("missing bucket parameter")
@@ -99,11 +107,18 @@ func init() {
 		log.Fatalf("failed parsing backup ttl: %s", err)
 	}
 
+	var id cron.EntryID
 	cron := cron.New(
 		cron.WithLogger(cron.VerbosePrintfLogger(log)),
 	)
-	cron.AddFunc(*schedule, makeBackup)
-	cron.AddFunc(*schedule, rotateBackups)
+	id, err = cron.AddFunc(*schedule, makeBackup)
+	if err != nil {
+		log.Fatalf("failed to schedule entry %d: %s", id, err)
+	}
+	id, err = cron.AddFunc(*schedule, rotateBackups)
+	if err != nil {
+		log.Fatalf("failed to schedule entry %d: %s", id, err)
+	}
 	cron.Start()
 
 	prometheus.MustRegister(promSuccessBackups)
