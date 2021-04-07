@@ -15,6 +15,9 @@ import (
 	"github.com/sirupsen/logrus"
 	flag "github.com/spf13/pflag"
 
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -26,13 +29,39 @@ import (
 )
 
 var (
-	cfg      *api.Config
-	log      *logrus.Logger
+	cfg *api.Config
+	log *logrus.Logger
+
 	ttl      time.Duration
 	endpoint string
 	region   string
 	bucket   string
 	prefix   string
+
+	promSuccessBackups = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "consul_success_backups_total",
+			Help: "Success consul backups count.",
+		},
+	)
+	promFailedBackups = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "consul_failed_backups_total",
+			Help: "Failed consul backups count.",
+		},
+	)
+	promSuccessRotations = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "consul_success_backup_rotate_tasks_total",
+			Help: "Consul success backup rotate tasks count.",
+		},
+	)
+	promFailedRotations = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Name: "consul_failed_backup_rotate_tasks_total",
+			Help: "Consul failed backup rotate tasks count.",
+		},
+	)
 )
 
 func init() {
@@ -77,16 +106,27 @@ func init() {
 	cron.AddFunc(*schedule, rotateBackups)
 	cron.Start()
 
-	rotateBackups()
+	prometheus.MustRegister(promSuccessBackups)
+	prometheus.MustRegister(promFailedBackups)
+	prometheus.MustRegister(promSuccessRotations)
+	prometheus.MustRegister(promFailedRotations)
 }
 
 func main() {
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.HandleFunc("/healthz", healthChekHandler)
+	http.HandleFunc("/readyz", healthChekHandler)
+	http.Handle("/metrics", promhttp.Handler())
+	log.Fatal(http.ListenAndServe(":80", nil))
+}
+
+func healthChekHandler(w http.ResponseWriter, r *http.Request) {
+	return
 }
 
 func makeBackup() {
 	snap, err := GetSnapshot(cfg)
 	if err != nil {
+		promFailedBackups.Inc()
 		log.Errorf("failed to get snapshot: %s", err)
 	}
 
@@ -108,10 +148,12 @@ func makeBackup() {
 		Body:   body,
 	})
 	if err != nil {
+		promFailedBackups.Inc()
 		log.Errorf("failed to upload file, %v", err)
 		return
 	}
 
+	promSuccessBackups.Inc()
 	log.Infof("snapshot %s successfully uploaded to s3://%s", name, path.Join(bucket, prefix))
 }
 
@@ -130,6 +172,7 @@ func rotateBackups() {
 
 	resp, err := svc.ListObjects(input)
 	if err != nil {
+		promFailedRotations.Inc()
 		log.Errorf("failed to list snapshots in s3 bucket: %s", err)
 		return
 	}
@@ -168,11 +211,13 @@ func rotateBackups() {
 
 		_, err := svc.DeleteObjects(input)
 		if err != nil {
+			promFailedRotations.Inc()
 			log.Errorf("failed to delete objects from s3: %s", err)
 			return
 		}
 	}
 
+	promSuccessRotations.Inc()
 	log.Infof("removed snapshots: %v", snaps)
 }
 

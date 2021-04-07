@@ -1,0 +1,86 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "consul-backup-s3.fullname" . }}
+  labels:
+    {{- include "consul-backup-s3.labels" . | nindent 4 }}
+spec:
+  {{- if not .Values.autoscaling.enabled }}
+  replicas: {{ .Values.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "consul-backup-s3.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "consul-backup-s3.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "consul-backup-s3.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: {{ .Chart.Name }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - --consul.address={{ .Values.consul.address }}
+            - --s3.bucket={{ .Values.s3.bucket }}
+            {{- if .Values.s3.prefix }}
+            - --s3.prefix={{ .Values.s3.prefix }}
+            {{- end }}
+            {{- if and .Values.s3.endpoint .Values.s3.redion }}
+            - --s3.endpoint={{ .Values.s3.endpoint }}
+            - --s3.region={{ .Values.s3.redion }}
+            {{- end }}
+            - --backup.schedule={{ .Values.backup.schedule }}
+            {{- if .Values.backup.ttl }}
+            - --backup.ttl={{ .Values.backup.ttl }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+          volumeMounts:
+            - name: credentials
+              mountPath: /root/.aws/credentials
+              subPath: credentials
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+      volumes:
+        - name: credentials
+          configMap:
+            name: {{ include "consul-backup-s3.fullname" . }}
+            items:
+              - key: credentials
+                path: credentials
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
