@@ -1,9 +1,14 @@
-apiVersion: v1
-kind: Service
+{{- if and .Values.metrics.enabled .Values.metrics.serviceMonitor.enabled}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
 metadata:
   name: {{ include "consul-backup-s3.fullname" . }}
   labels:
     {{- include "consul-backup-s3.labels" . | nindent 4 }}
 spec:
+  endpoints:
+    - port: http
   selector:
-    {{- include "consul-backup-s3.selectorLabels" . | nindent 4 }}
+    matchLabels:
+      {{- include "consul-backup-s3.selectorLabels" . | nindent 6 }}
+{{- end }}

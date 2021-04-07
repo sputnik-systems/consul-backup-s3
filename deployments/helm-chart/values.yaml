@@ -78,6 +78,12 @@ tolerations: []
 
 affinity: {}
 
+metrics:
+  enabled: false
+
+  serviceMonitor:
+    enabled: false
+
 s3:
   credentials: |+
     [default]

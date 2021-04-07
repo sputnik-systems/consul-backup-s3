@@ -39,9 +39,9 @@ spec:
             {{- if .Values.s3.prefix }}
             - --s3.prefix={{ .Values.s3.prefix }}
             {{- end }}
-            {{- if and .Values.s3.endpoint .Values.s3.redion }}
+            {{- if .Values.s3.endpoint }}
             - --s3.endpoint={{ .Values.s3.endpoint }}
-            - --s3.region={{ .Values.s3.redion }}
+            - --s3.region={{ required "s3 region must be set with endpoint" .Values.s3.region }}
             {{- end }}
             - --backup.schedule={{ .Values.backup.schedule }}
             {{- if .Values.backup.ttl }}
@@ -67,8 +67,8 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: credentials
-          configMap:
-            name: {{ include "consul-backup-s3.fullname" . }}
+          secret:
+            secretName: {{ include "consul-backup-s3.fullname" . }}
             items:
               - key: credentials
                 path: credentials
