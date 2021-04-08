@@ -21,4 +21,7 @@ Usage of /tmp/go-build3397545109/b001/exe/main:
 pflag: help requested
 exit status 2
 ```
+## S3 options
 For not amazon cloud provider, you need specify endpoint and region.
+## Schedule option format
+Schedule option support cron like notation. Also supported values like "@hourly", "@daily", "@weekly", "@monthly", "@yearly", "@annually" and "@every duraton"(duration must be parsable with time.ParseDuration).
