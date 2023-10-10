@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"time"
@@ -251,7 +252,7 @@ func GetSnapshot(cfg *api.Config) ([]byte, error) {
 	defer snap.Close()
 
 	// Save the file for snapshot verification.
-	unverifiedFile := "snap" + ".unverified"
+	unverifiedFile := filepath.Join("/tmp", "snap.unverified")
 	if _, err := safeio.WriteToFile(snap, unverifiedFile, 0666); err != nil {
 		return nil, fmt.Errorf("error writing unverified snapshot file: %s", err)
 	}
