@@ -5,7 +5,7 @@
 replicaCount: 1
 
 image:
-  repository: sputniksystemsorg/consul-backup-s3
+  repository: ghcr.io/sputnik-systems/consul-backup-s3
   pullPolicy: IfNotPresent
   # Overrides the image tag whose default is the chart appVersion.
   tag: ""
