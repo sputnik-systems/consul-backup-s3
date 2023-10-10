@@ -131,7 +131,7 @@ func main() {
 	http.HandleFunc("/healthz", healthChekHandler)
 	http.HandleFunc("/readyz", healthChekHandler)
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(":80", nil))
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func healthChekHandler(w http.ResponseWriter, r *http.Request) {
