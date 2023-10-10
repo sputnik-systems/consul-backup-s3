@@ -47,6 +47,9 @@ spec:
             {{- if .Values.backup.ttl }}
             - --backup.ttl={{ .Values.backup.ttl }}
             {{- end }}
+          env:
+            - name: HOME
+              value: /home
           ports:
             - name: http
               containerPort: 8080
@@ -61,11 +64,16 @@ spec:
               port: http
           volumeMounts:
             - name: credentials
-              mountPath: /root/.aws/credentials
+              mountPath: /home/.aws/credentials
               subPath: credentials
+            - name: tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
+        - name: tmp
+          emptyDir:
+            medium: Memory
         - name: credentials
           secret:
             secretName: {{ include "consul-backup-s3.fullname" . }}
