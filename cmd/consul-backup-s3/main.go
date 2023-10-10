@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"path"
@@ -135,7 +135,7 @@ func main() {
 }
 
 func healthChekHandler(w http.ResponseWriter, r *http.Request) {
-	return
+	w.WriteHeader(http.StatusOK)
 }
 
 func makeBackup() {
@@ -264,7 +264,7 @@ func GetSnapshot(cfg *api.Config) ([]byte, error) {
 	}
 	defer f.Close()
 
-	body, err := ioutil.ReadAll(f)
+	body, err := io.ReadAll(f)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read snapshot body: %s", err)
 	}
